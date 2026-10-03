@@ -8,7 +8,24 @@ macOS 13 이상 · SwiftUI · MIT License
 
 [시작하기](#시작하기) · [사용 방법](#사용-방법) · [기술 안내](docs/TECHNICAL.md) · [개인정보](PRIVACY.md)
 
-<!-- 스크린샷은 docs/screenshots/에 추가한 뒤 이 위치에 이미지 링크를 넣으세요. -->
+<p align="center">
+  <img src="docs/screenshots/internal-drive-dashboard.png" alt="내장 디스크의 온도·남은 수명·저장 공간·누적 읽기와 쓰기를 보여주는 MacDiskTemp 대시보드" width="900">
+</p>
+
+내장 디스크의 주요 상태를 한 화면에서 확인할 수 있습니다.
+
+<details>
+<summary>외장 디스크와 SMART 상세 화면 보기</summary>
+
+**외장 디스크 대시보드**
+
+![외장 SSD를 선택한 MacDiskTemp 대시보드](docs/screenshots/external-drive-dashboard.png)
+
+**SMART 상세 정보**
+
+![디스크 건강 상태·온도 센서·사용 시간·오류 기록을 보여주는 SMART 상세 화면](docs/screenshots/smart-details.png)
+
+</details>
 
 ## 주요 기능
 
