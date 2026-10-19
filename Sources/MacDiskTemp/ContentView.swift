@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import DiskCore
+import AlertCore
 
 private enum DetailTab: String, CaseIterable { case smart = "SMART 상세", device = "장치 정보", raw = "SMART 원문" }
 
@@ -443,8 +444,15 @@ private extension View {
 
 private struct SettingsView: View {
     @ObservedObject var monitor: DiskMonitor
+    @ObservedObject var alerts: AlertCoordinator
     @Environment(\.dismiss) private var dismiss
-    @State private var draftPath = ""
+    @State private var draft = AlertDraft(AlertSettings())
+    @State private var session: UUID?
+    @State private var inputError: String?
+    init(monitor: DiskMonitor) {
+        self.monitor = monitor
+        self.alerts = monitor.alerts
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("설정").font(.title2.bold())
@@ -452,11 +460,42 @@ private struct SettingsView: View {
                 Text("smartctl 위치").font(.headline)
                 Text("비워 두면 Homebrew의 기본 설치 경로를 자동으로 찾습니다.").font(.callout).foregroundStyle(.secondary)
                 HStack {
-                    TextField("자동으로 찾기", text: $draftPath).textFieldStyle(.roundedBorder)
+                    TextField("자동으로 찾기", text: $draft.smartctlPath).textFieldStyle(.roundedBorder)
                     Button("파일 선택…") { selectExecutable() }
                 }
                 Text("현재 위치: \(monitor.resolvedPath ?? "찾을 수 없음")")
                     .font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("온도 알림 켜기", isOn: $draft.enabled)
+                HStack {
+                    Text("알림 기준 온도")
+                    TextField("70", text: $draft.threshold).textFieldStyle(.roundedBorder)
+                        .frame(width: 65).disabled(!draft.enabled)
+                    Text("°C 초과 · 연속 2회")
+                }
+                Text(alerts.permission?.title ?? "알림 권한 확인 중…")
+                    .font(.callout).foregroundStyle(.secondary)
+                if let error = inputError ?? alerts.storageError {
+                    Text(error).font(.callout).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                }
+                if !alerts.message.isEmpty {
+                    Text(alerts.message).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if monitor.interval == 0 {
+                    Text("자동 갱신이 꺼져 있어 수동 측정 때만 온도를 확인합니다.").font(.caption).foregroundStyle(.orange)
+                }
+                if alerts.identityLimited {
+                    Text("이 장치는 고유 식별 정보가 없어 재연결·재실행 후 중복 알림 방지가 제한됩니다.")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                Button(alerts.testBusy ? "시험 알림 처리 중…" : "시험 알림") {
+                    if let session { alerts.sendTest(session: session) }
+                }.disabled(alerts.testBusy || !alerts.ready)
+                Text("시험 알림은 저장하지 않아도 전송됩니다. 실제 온도 및 자동 알림 설정과 관계없습니다.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Divider()
             Text("앱은 Dock에 표시되지 않습니다. 창을 닫아도 메뉴 막대에서 온도를 확인하거나 ‘대시보드 열기’로 창을 다시 열 수 있습니다. 완전히 종료하려면 ‘MacDiskTemp 종료’를 선택하세요.")
@@ -467,13 +506,17 @@ private struct SettingsView: View {
                 Spacer()
                 Button("취소") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("저장") {
-                    monitor.customPath = draftPath.trimmingCharacters(in: .whitespacesAndNewlines)
-                    monitor.settingsChanged()
-                    dismiss()
+                    do {
+                        try monitor.saveSettings(draft)
+                        draft = AlertDraft(alerts.settings)
+                        inputError = nil
+                        if let session { Task { await alerts.requestSavedPermission(session: session) } }
+                    } catch { inputError = error.localizedDescription }
                 }.keyboardShortcut(.defaultAction)
             }
         }.padding(28).frame(width: 530)
-            .onAppear { draftPath = monitor.customPath }
+            .onAppear { draft = AlertDraft(alerts.settings); session = alerts.openEditor() }
+            .onDisappear { if let session { alerts.closeEditor(session) } }
     }
     private func selectExecutable() {
         let panel = NSOpenPanel()
@@ -481,6 +524,6 @@ private struct SettingsView: View {
         panel.allowsMultipleSelection = false
         panel.message = "설치된 smartctl 실행 파일을 선택하세요."
         panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin")
-        if panel.runModal() == .OK, let url = panel.url { draftPath = url.path }
+        if panel.runModal() == .OK, let url = panel.url { draft.smartctlPath = url.path }
     }
 }

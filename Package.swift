@@ -10,9 +10,13 @@ let package = Package(
     ],
     targets: [
         .target(name: "DiskCore"),
-        .executableTarget(name: "MacDiskTemp", dependencies: ["DiskCore"]),
+        .target(name: "AlertCore", dependencies: ["DiskCore"]),
+        .target(name: "MacAlertSupport", dependencies: ["AlertCore"]),
+        .executableTarget(name: "MacDiskTemp", dependencies: ["DiskCore", "AlertCore", "MacAlertSupport"]),
+        .executableTarget(name: "AlertHarness", dependencies: ["AlertCore", "MacAlertSupport"]),
         .executableTarget(name: "DiskProbe", dependencies: ["DiskCore"]),
-        .testTarget(name: "DiskCoreTests", dependencies: ["DiskCore"])
+        .testTarget(name: "DiskCoreTests", dependencies: ["DiskCore"]),
+        .testTarget(name: "AlertCoreTests", dependencies: ["AlertCore"])
     ],
     swiftLanguageModes: [.v5]
 )

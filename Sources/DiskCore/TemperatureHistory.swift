@@ -49,7 +49,7 @@ public struct TemperatureHistory: Sendable {
     @discardableResult
     public mutating func record(_ temperature: Int?, for key: String, date: Date,
                                 uptime: TimeInterval, maximumGap: TimeInterval) -> TemperatureSummary? {
-        guard let temperature, (-273...1000).contains(temperature) else {
+        guard let temperature, TemperatureAlertPolicy.validTemperature(temperature) else {
             pause()
             return summaries[key]
         }
